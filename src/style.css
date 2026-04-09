@@ -1,0 +1,36 @@
+:root {
+  color-scheme: light;
+  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+  background: linear-gradient(180deg, #f8fbfe 0%, #eef3f8 100%);
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  display: grid;
+  place-items: center;
+  touch-action: none;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(135, 180, 255, 0.12), transparent 22%),
+    radial-gradient(circle at 82% 16%, rgba(120, 224, 210, 0.1), transparent 18%),
+    linear-gradient(180deg, #f8fbfe 0%, #eef3f8 100%);
+}
+
+canvas {
+  display: block;
+  outline: none;
+  image-rendering: auto;
+  image-rendering: optimizeQuality;
+  transform: translateZ(0);
+  filter: none;
+}

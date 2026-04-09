@@ -1,0 +1,9 @@
+<svg width="320" height="120" viewBox="0 0 320 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="glow" x1="24" y1="16" x2="294" y2="102" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#83C2FF" stop-opacity="0.52"/>
+      <stop offset="1" stop-color="#65E1D0" stop-opacity="0.28"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="10" width="300" height="92" rx="28" stroke="url(#glow)" stroke-width="6"/>
+</svg>
