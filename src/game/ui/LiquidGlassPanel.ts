@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { darken, lighten, mixColor } from '../visuals';
 
 export type GlassVariant = 'light' | 'dark';
 
@@ -10,6 +11,7 @@ export class LiquidGlassPanel {
   private readonly panelBody: Phaser.GameObjects.Graphics;
   private readonly shine: Phaser.GameObjects.Graphics;
   private readonly frame: Phaser.GameObjects.Graphics;
+  private readonly innerShadow: Phaser.GameObjects.Graphics;
   private widthPx: number;
   private heightPx: number;
   private radiusPx: number;
@@ -36,8 +38,9 @@ export class LiquidGlassPanel {
     this.panelBody = scene.add.graphics();
     this.shine = scene.add.graphics();
     this.frame = scene.add.graphics();
+    this.innerShadow = scene.add.graphics();
 
-    this.root.add([this.shadow, this.aura, this.panelBody, this.shine, this.frame]);
+    this.root.add([this.shadow, this.aura, this.panelBody, this.shine, this.innerShadow, this.frame]);
     this.redraw();
   }
 
@@ -79,64 +82,58 @@ export class LiquidGlassPanel {
     const width = this.widthPx;
     const height = this.heightPx;
     const radius = this.radiusPx;
-    const topGlow = lighten(this.accent, 0.44);
+    const topGlow = lighten(this.accent, 0.52);
+    const warmCream = mixColor(0xfffbf7, topGlow, 0.18);
     const isLight = this.variant === 'light';
 
     this.shadow
       .clear()
-      .fillStyle(isLight ? 0xc7d6e8 : 0x01040a, isLight ? 0.12 : 0.22)
+      .fillStyle(isLight ? darken(this.accent, 0.54) : 0x090511, isLight ? 0.1 : 0.26)
       .fillRoundedRect(8, 12, width, height, radius);
 
     this.aura
       .clear()
-      .fillStyle(this.accent, isLight ? 0.07 : 0.05)
+      .fillStyle(this.accent, isLight ? 0.08 : 0.07)
       .fillRoundedRect(2, 2, width - 4, height - 4, radius)
-      .fillStyle(topGlow, isLight ? 0.06 : 0.05)
-      .fillEllipse(width * 0.28, height * 0.2, width * 0.5, height * 0.34)
-      .fillStyle(lighten(this.accent, 0.24), isLight ? 0.05 : 0.05)
-      .fillEllipse(width * 0.78, height * 0.78, width * 0.34, height * 0.42);
+      .fillStyle(topGlow, isLight ? 0.1 : 0.07)
+      .fillEllipse(width * 0.24, height * 0.16, width * 0.58, height * 0.36)
+      .fillStyle(lighten(this.accent, 0.3), isLight ? 0.08 : 0.07)
+      .fillEllipse(width * 0.8, height * 0.82, width * 0.38, height * 0.46);
 
     this.panelBody.clear();
     if (isLight) {
       this.panelBody.fillGradientStyle(
-        0xf6fbff,
-        0xf1f7fc,
-        0xe8f0f8,
-        0xe2ecf7,
-        0.78,
-        0.72,
-        0.86,
-        0.9
+        warmCream,
+        mixColor(0xffffff, topGlow, 0.3),
+        mixColor(0xfff3f6, this.accent, 0.1),
+        mixColor(0xfff8ef, this.accent, 0.14),
+        0.82,
+        0.74,
+        0.9,
+        0.94
       );
     } else {
-      this.panelBody.fillGradientStyle(0x15273c, 0x101c2e, 0x0b1220, 0x0a101b, 0.48, 0.4, 0.62, 0.72);
+      this.panelBody.fillGradientStyle(0x332944, 0x2a233d, 0x211c31, 0x1c1629, 0.5, 0.44, 0.68, 0.74);
     }
     this.panelBody.fillRoundedRect(0, 0, width, height, radius);
 
     this.shine
       .clear()
-      .fillStyle(0xffffff, isLight ? 0.18 : 0.055)
-      .fillRoundedRect(5, 5, width - 10, height * 0.24, Math.max(14, radius - 8))
-      .fillStyle(0xffffff, isLight ? 0.05 : 0.018)
-      .fillRoundedRect(8, height * 0.38, width - 16, height * 0.18, Math.max(12, radius - 10));
+      .fillStyle(0xffffff, isLight ? 0.24 : 0.08)
+      .fillRoundedRect(6, 6, width - 12, height * 0.24, Math.max(14, radius - 8))
+      .fillStyle(topGlow, isLight ? 0.14 : 0.05)
+      .fillRoundedRect(10, height * 0.42, width - 20, height * 0.18, Math.max(12, radius - 10));
+
+    this.innerShadow
+      .clear()
+      .lineStyle(2, isLight ? darken(this.accent, 0.35) : 0x000000, isLight ? 0.08 : 0.18)
+      .strokeRoundedRect(8, 10, width - 16, height - 18, Math.max(14, radius - 10));
 
     this.frame
       .clear()
-      .lineStyle(2, this.accent, isLight ? 0.18 : 0.22)
+      .lineStyle(2, mixColor(this.accent, 0xffffff, 0.2), isLight ? 0.34 : 0.3)
       .strokeRoundedRect(0, 0, width, height, radius)
-      .lineStyle(1, isLight ? 0xd4e3f3 : 0xffffff, isLight ? 0.8 : 0.1)
+      .lineStyle(1, isLight ? 0xffffff : topGlow, isLight ? 0.84 : 0.16)
       .strokeRoundedRect(4, 4, width - 8, height - 8, Math.max(12, radius - 8));
   }
 }
-
-const lighten = (hex: number, factor: number): number => {
-  const r = (hex >> 16) & 0xff;
-  const g = (hex >> 8) & 0xff;
-  const b = hex & 0xff;
-
-  return (
-    ((Math.round(r + (255 - r) * factor) & 0xff) << 16) |
-    ((Math.round(g + (255 - g) * factor) & 0xff) << 8) |
-    (Math.round(b + (255 - b) * factor) & 0xff)
-  );
-};

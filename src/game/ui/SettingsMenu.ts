@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { GlassVariant, LiquidGlassPanel } from './LiquidGlassPanel';
 import { LiquidGlassButton } from './LiquidGlassButton';
+import { DISPLAY_FONT_FAMILY, UI_FONT_FAMILY, lighten, mixColor } from '../visuals';
 
 export type DifficultyMode = 'easy' | 'normal' | 'hard';
 export type ThemeMode = 'light' | 'dark';
@@ -67,13 +68,13 @@ export class SettingsMenu {
   ) {
     this.callbacks = callbacks;
     this.root = scene.add.container(0, 0).setDepth(700).setVisible(false);
-    this.overlay = scene.add.rectangle(0, 0, 10, 10, 0xf4f8fd, 0.54).setOrigin(0);
+    this.overlay = scene.add.rectangle(0, 0, 10, 10, 0xfff4ee, 0.56).setOrigin(0);
     this.panel = new LiquidGlassPanel(scene, this.widthPx, this.heightPx, 28, this.accent, this.variant);
     this.titleText = scene.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+      fontFamily: DISPLAY_FONT_FAMILY,
       fontSize: '28px',
-      fontStyle: '700',
-      color: '#24384d'
+      fontStyle: '800',
+      color: '#5d4a64'
     });
     this.volumeLabel = this.createSectionText(scene);
     this.difficultyLabel = this.createSectionText(scene);
@@ -217,14 +218,14 @@ export class SettingsMenu {
       button.setAccent(accent).setVariant(variant);
     }
 
-    const textColor = variant === 'light' ? '#24384d' : '#ebf7ff';
+    const textColor = variant === 'light' ? '#5d4a64' : '#fff7f1';
     this.titleText.setColor(textColor);
     this.volumeLabel.setColor(textColor);
     this.difficultyLabel.setColor(textColor);
     this.themeLabel.setColor(textColor);
     this.languageLabel.setColor(textColor);
-    this.overlay.fillColor = variant === 'light' ? 0xf3f8ff : 0x09111c;
-    this.overlay.fillAlpha = variant === 'light' ? 0.52 : 0.58;
+    this.overlay.fillColor = variant === 'light' ? 0xfff4ee : 0x201729;
+    this.overlay.fillAlpha = variant === 'light' ? 0.56 : 0.64;
     this.drawSlider();
     this.refreshSelections();
 
@@ -291,10 +292,10 @@ export class SettingsMenu {
 
   private createSectionText(scene: Phaser.Scene): Phaser.GameObjects.Text {
     return scene.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+      fontFamily: UI_FONT_FAMILY,
       fontSize: '16px',
-      fontStyle: '700',
-      color: '#24384d'
+      fontStyle: '800',
+      color: '#5d4a64'
     });
   }
 
@@ -315,33 +316,33 @@ export class SettingsMenu {
     const y = this.sliderZone.y + 22;
     const width = this.sliderZone.width;
     const fillWidth = width * this.volume;
-    const trackColor = this.variant === 'light' ? 0xdde9f6 : 0x10243a;
+    const trackColor = this.variant === 'light' ? 0xf5ddd2 : 0x352943;
     const accentLight = lighten(this.accent, 0.24);
 
     this.sliderTrack
       .clear()
       .fillStyle(trackColor, this.variant === 'light' ? 0.92 : 0.8)
       .fillRoundedRect(x, y, width, 8, 4)
-      .fillStyle(0xffffff, this.variant === 'light' ? 0.7 : 0.12)
+      .fillStyle(0xffffff, this.variant === 'light' ? 0.58 : 0.12)
       .fillRoundedRect(x + 2, y + 1, width - 4, 3, 2);
 
     this.sliderFill
       .clear()
       .fillStyle(this.accent, 0.88)
       .fillRoundedRect(x, y, fillWidth, 8, 4)
-      .fillStyle(accentLight, 0.44)
+      .fillStyle(lighten(this.accent, 0.44), 0.44)
       .fillRoundedRect(x, y, fillWidth, 3, 2);
 
     this.sliderThumb
       .setPosition(x + fillWidth, y + 4)
       .setRadius(9)
-      .setFillStyle(accentLight, 0.98)
+      .setFillStyle(mixColor(accentLight, 0xffffff, 0.2), 0.98)
       .setStrokeStyle(2, 0xffffff, this.variant === 'light' ? 0.9 : 0.5);
   }
 
   private refreshSelections(): void {
     const accent = this.accent;
-    const inactive = this.variant === 'light' ? 0xb4c6d9 : 0x6f89a3;
+    const inactive = this.variant === 'light' ? mixColor(0xd8b8c8, 0xe8dfeb, 0.5) : 0x7f6995;
 
     this.difficultyButtons.easy.setAccent(this.difficulty === 'easy' ? accent : inactive);
     this.difficultyButtons.normal.setAccent(this.difficulty === 'normal' ? accent : inactive);
@@ -369,20 +370,15 @@ export class SettingsMenu {
 
       bar
         .clear()
-        .fillStyle(index / this.waveBars.length <= this.volume ? this.accent : 0xc8d7e8, 0.8)
+        .fillStyle(
+          index / this.waveBars.length <= this.volume
+            ? this.accent
+            : this.variant === 'light'
+              ? mixColor(0xffd9cc, 0xe8dcef, 0.42)
+              : 0x5e4b74,
+          0.82
+        )
         .fillRoundedRect(x, baseY - height, 8, height, 4);
     }
   }
 }
-
-const lighten = (hex: number, factor: number): number => {
-  const r = (hex >> 16) & 0xff;
-  const g = (hex >> 8) & 0xff;
-  const b = hex & 0xff;
-
-  return (
-    ((Math.round(r + (255 - r) * factor) & 0xff) << 16) |
-    ((Math.round(g + (255 - g) * factor) & 0xff) << 8) |
-    (Math.round(b + (255 - b) * factor) & 0xff)
-  );
-};

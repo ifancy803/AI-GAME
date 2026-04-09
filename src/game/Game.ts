@@ -8,6 +8,18 @@ import { LiquidGlassButton } from './ui/LiquidGlassButton';
 import { GlassVariant, LiquidGlassPanel } from './ui/LiquidGlassPanel';
 import { DifficultyMode, SettingsMenu, ThemeMode } from './ui/SettingsMenu';
 import {
+  DISPLAY_FONT_FAMILY,
+  JOYFUL_SURFACE,
+  TILE_ART_DESCRIPTIONS,
+  TILE_TEXTURE_KEYS,
+  UI_FONT_FAMILY,
+  WARM_EASING,
+  darken,
+  hexToCss,
+  lighten,
+  mixColor
+} from './visuals';
+import {
   AIDecision,
   BoardLayout,
   Language,
@@ -15,8 +27,7 @@ import {
   Move,
   PlayerSide,
   ScoreBook,
-  ThoughtPreview,
-  TILE_PALETTE
+  ThoughtPreview
 } from './types';
 
 type StatusState = {
@@ -41,20 +52,13 @@ type SceneTheme = {
   background: number;
   backgroundOrbA: number;
   backgroundOrbB: number;
+  backgroundOrbC: number;
   accent: number;
   text: string;
   muted: string;
   soft: string;
   panelAccent: number;
 };
-
-const GEM_ASSET_KEYS = [
-  'gem-red',
-  'gem-orange',
-  'gem-yellow',
-  'gem-green',
-  'gem-blue'
-] as const;
 
 class Match3Scene extends Phaser.Scene {
   private readonly ai = new AIPlayer(2, 8);
@@ -75,6 +79,8 @@ class Match3Scene extends Phaser.Scene {
   private levelCompleted = false;
 
   private background!: Phaser.GameObjects.Graphics;
+  private backgroundDecor!: Phaser.GameObjects.Container;
+  private backgroundDecorElements: Phaser.GameObjects.Image[] = [];
   private hudTop!: LiquidGlassPanel;
   private hudBottom!: LiquidGlassPanel;
   private thoughtPanel!: LiquidGlassPanel;
@@ -118,21 +124,7 @@ class Match3Scene extends Phaser.Scene {
     super('Match3Arena');
   }
 
-  public preload(): void {
-    GEM_ASSET_KEYS.forEach((key) => {
-      if (!this.textures.exists(key)) {
-        this.load.svg(key, `/assets/gems/${key}.svg`, { width: 128, height: 128 });
-      }
-    });
-
-    if (!this.textures.exists('ui-button-glass')) {
-      this.load.svg('ui-button-glass', '/assets/ui/button-glass.svg', { width: 320, height: 120 });
-    }
-
-    if (!this.textures.exists('ui-button-accent')) {
-      this.load.svg('ui-button-accent', '/assets/ui/button-accent.svg', { width: 320, height: 120 });
-    }
-  }
+  public preload(): void {}
 
   public create(): void {
     this.ensureTextures();
@@ -148,72 +140,93 @@ class Match3Scene extends Phaser.Scene {
   private ensureTextures(): void {
     if (!this.textures.exists('tile-hint-ring')) {
       const ring = this.add.graphics();
-      ring.lineStyle(10, 0xf4fbff, 0.3).strokeRoundedRect(6, 6, 148, 148, 34);
-      ring.lineStyle(4, 0xf7fbff, 0.95).strokeRoundedRect(14, 14, 132, 132, 28);
+      ring.lineStyle(10, 0xffd9a8, 0.24).strokeRoundedRect(6, 6, 148, 148, 34);
+      ring.lineStyle(4, 0xffffff, 0.9).strokeRoundedRect(14, 14, 132, 132, 28);
       ring.generateTexture('tile-hint-ring', 160, 160);
       ring.destroy();
     }
 
     if (!this.textures.exists('tile-select-ring')) {
       const ring = this.add.graphics();
-      ring.lineStyle(10, 0xffd166, 0.28).strokeRoundedRect(6, 6, 148, 148, 34);
-      ring.lineStyle(4, 0xffe7a6, 0.96).strokeRoundedRect(14, 14, 132, 132, 28);
+      ring.lineStyle(10, 0xffb7c3, 0.3).strokeRoundedRect(6, 6, 148, 148, 34);
+      ring.lineStyle(4, 0xfff4cf, 0.96).strokeRoundedRect(14, 14, 132, 132, 28);
       ring.generateTexture('tile-select-ring', 160, 160);
       ring.destroy();
     }
 
-    if (!this.textures.exists('tile-facet')) {
-      const facet = this.add.graphics();
-      facet.fillStyle(0xffffff, 0.18);
-      facet.fillTriangle(34, 18, 94, 18, 66, 66);
-      facet.fillTriangle(36, 26, 60, 66, 22, 94);
-      facet.fillTriangle(96, 26, 110, 94, 70, 66);
-      facet.lineStyle(2, 0xffffff, 0.22);
-      facet.lineBetween(24, 94, 66, 66);
-      facet.lineBetween(66, 66, 110, 94);
-      facet.lineBetween(34, 18, 66, 66);
-      facet.lineBetween(94, 18, 66, 66);
-      facet.generateTexture('tile-facet', 128, 128);
-      facet.destroy();
+    if (!this.textures.exists('tile-backing')) {
+      const backing = this.add.graphics();
+      backing.fillStyle(0xffffff, 0.96).fillRoundedRect(10, 10, 108, 108, 38);
+      backing.fillStyle(0xffffff, 0.42).fillRoundedRect(18, 14, 92, 36, 22);
+      backing.lineStyle(4, 0xffffff, 0.82).strokeRoundedRect(12, 12, 104, 104, 36);
+      backing.generateTexture('tile-backing', 128, 128);
+      backing.destroy();
     }
 
-    if (!this.textures.exists('tile-caustic')) {
-      const caustic = this.add.graphics();
-      caustic.fillStyle(0xffffff, 0.42).fillEllipse(48, 28, 60, 22);
-      caustic.fillStyle(0xffffff, 0.16).fillEllipse(74, 48, 52, 18);
-      caustic.generateTexture('tile-caustic', 128, 128);
-      caustic.destroy();
+    if (!this.textures.exists('tile-sheen')) {
+      const sheen = this.add.graphics();
+      sheen.fillStyle(0xffffff, 0.84).fillCircle(34, 30, 12);
+      sheen.fillStyle(0xffffff, 0.52).fillCircle(52, 22, 6);
+      sheen.fillStyle(0xffffff, 0.3).fillCircle(48, 44, 4);
+      sheen.generateTexture('tile-sheen', 72, 72);
+      sheen.destroy();
+    }
+
+    if (!this.textures.exists('tile-shadow')) {
+      const shadow = this.add.graphics();
+      shadow.fillStyle(0x7f5574, 0.42).fillEllipse(50, 14, 86, 20);
+      shadow.generateTexture('tile-shadow', 100, 28);
+      shadow.destroy();
     }
 
     if (!this.textures.exists('tile-core-glow')) {
       const glow = this.add.graphics();
-      glow.fillStyle(0xffffff, 0.18).fillCircle(64, 64, 54);
-      glow.fillStyle(0xffffff, 0.28).fillCircle(64, 64, 38);
-      glow.fillStyle(0xffffff, 0.4).fillCircle(64, 64, 24);
+      glow.fillStyle(0xffffff, 0.12).fillCircle(64, 64, 56);
+      glow.fillStyle(0xffffff, 0.22).fillCircle(64, 64, 40);
+      glow.fillStyle(0xffffff, 0.38).fillCircle(64, 64, 24);
       glow.generateTexture('tile-core-glow', 128, 128);
       glow.destroy();
     }
 
-    if (!this.textures.exists('tile-shard')) {
-      const shard = this.add.graphics();
-      const points = [
-        new Phaser.Math.Vector2(18, 4),
-        new Phaser.Math.Vector2(28, 20),
-        new Phaser.Math.Vector2(20, 40),
-        new Phaser.Math.Vector2(10, 24)
-      ];
+    TILE_TEXTURE_KEYS.forEach((key, index) => {
+      if (!this.textures.exists(key)) {
+        this.generateIllustratedTileTexture(key, this.level?.palette[index] ?? JOYFUL_SURFACE.apricot, index);
+      }
+    });
 
-      shard.fillStyle(0xffffff, 0.98).fillPoints(points, true);
-      shard.lineStyle(2, 0xffffff, 0.4).strokePoints(points, true);
-      shard.generateTexture('tile-shard', 40, 44);
-      shard.destroy();
+    if (!this.textures.exists('particle-petal')) {
+      const petal = this.add.graphics();
+      petal.fillStyle(0xffffff, 0.96).fillEllipse(18, 12, 18, 30);
+      petal.generateTexture('particle-petal', 36, 36);
+      petal.destroy();
+    }
+
+    if (!this.textures.exists('particle-heart')) {
+      const heart = this.add.graphics();
+      heart.fillStyle(0xffffff, 0.96);
+      heart.fillCircle(16, 14, 8);
+      heart.fillCircle(26, 14, 8);
+      heart.fillTriangle(8, 18, 34, 18, 21, 34);
+      heart.generateTexture('particle-heart', 42, 40);
+      heart.destroy();
+    }
+
+    if (!this.textures.exists('particle-bloom')) {
+      const bloom = this.add.graphics();
+      for (let petalIndex = 0; petalIndex < 5; petalIndex += 1) {
+        const angle = (Math.PI * 2 * petalIndex) / 5;
+        bloom.fillStyle(0xffffff, 0.92).fillCircle(20 + Math.cos(angle) * 9, 20 + Math.sin(angle) * 9, 8);
+      }
+      bloom.fillStyle(0xffffff, 0.96).fillCircle(20, 20, 7);
+      bloom.generateTexture('particle-bloom', 40, 40);
+      bloom.destroy();
     }
 
     if (!this.textures.exists('particle-soft')) {
       const particle = this.add.graphics();
-      particle.fillStyle(0xffffff, 0.15).fillCircle(24, 24, 24);
-      particle.fillStyle(0xffffff, 0.32).fillCircle(24, 24, 16);
-      particle.fillStyle(0xffffff, 0.82).fillCircle(24, 24, 8);
+      particle.fillStyle(0xffffff, 0.1).fillCircle(24, 24, 24);
+      particle.fillStyle(0xffffff, 0.26).fillCircle(24, 24, 16);
+      particle.fillStyle(0xffffff, 0.82).fillCircle(24, 24, 7);
       particle.generateTexture('particle-soft', 48, 48);
       particle.destroy();
     }
@@ -221,68 +234,155 @@ class Match3Scene extends Phaser.Scene {
     if (!this.textures.exists('particle-streak')) {
       const streak = this.add.graphics();
       const points = [
-        new Phaser.Math.Vector2(4, 10),
+        new Phaser.Math.Vector2(5, 14),
         new Phaser.Math.Vector2(28, 4),
-        new Phaser.Math.Vector2(46, 10),
-        new Phaser.Math.Vector2(28, 16)
+        new Phaser.Math.Vector2(48, 14),
+        new Phaser.Math.Vector2(28, 24)
       ];
 
-      streak.fillStyle(0xffffff, 0.98).fillPoints(points, true);
-      streak.fillStyle(0xffffff, 0.4).fillCircle(28, 10, 8);
-      streak.generateTexture('particle-streak', 52, 20);
+      streak.fillStyle(0xffffff, 0.96).fillPoints(points, true);
+      streak.fillStyle(0xffffff, 0.44).fillCircle(28, 14, 10);
+      streak.generateTexture('particle-streak', 54, 28);
       streak.destroy();
     }
 
-    if (!this.textures.exists('particle')) {
-      const particle = this.add.graphics();
-      particle.fillStyle(0xffffff, 1).fillCircle(6, 6, 6);
-      particle.generateTexture('particle', 12, 12);
-      particle.destroy();
+    if (!this.textures.exists('bg-blob')) {
+      const blob = this.add.graphics();
+      blob.fillStyle(0xffffff, 0.9);
+      blob.fillCircle(34, 28, 24);
+      blob.fillCircle(56, 34, 26);
+      blob.fillCircle(72, 22, 20);
+      blob.fillCircle(88, 40, 22);
+      blob.fillCircle(52, 56, 28);
+      blob.generateTexture('bg-blob', 120, 96);
+      blob.destroy();
     }
   }
 
-  private generateCrystalTexture(key: string, color: number): void {
+  private generateIllustratedTileTexture(key: string, color: number, index: number): void {
     const surface = this.add.graphics();
-    const outer = [
-      new Phaser.Math.Vector2(64, 4),
-      new Phaser.Math.Vector2(102, 16),
-      new Phaser.Math.Vector2(122, 44),
-      new Phaser.Math.Vector2(112, 96),
-      new Phaser.Math.Vector2(64, 124),
-      new Phaser.Math.Vector2(16, 96),
-      new Phaser.Math.Vector2(6, 44),
-      new Phaser.Math.Vector2(26, 16)
-    ];
-    const inner = [
-      new Phaser.Math.Vector2(64, 16),
-      new Phaser.Math.Vector2(92, 26),
-      new Phaser.Math.Vector2(104, 48),
-      new Phaser.Math.Vector2(96, 84),
-      new Phaser.Math.Vector2(64, 108),
-      new Phaser.Math.Vector2(32, 84),
-      new Phaser.Math.Vector2(24, 48),
-      new Phaser.Math.Vector2(36, 26)
-    ];
+    const highlight = lighten(color, 0.28);
+    const stroke = darken(color, 0.2);
 
-    surface.fillStyle(this.darken(color, 0.34), 1).fillPoints(outer, true);
-    surface.fillStyle(color, 1).fillPoints(inner, true);
-    surface.fillStyle(this.lighten(color, 0.42), 0.45).fillTriangle(64, 16, 92, 26, 64, 56);
-    surface.fillStyle(this.lighten(color, 0.3), 0.3).fillTriangle(32, 84, 64, 56, 24, 48);
-    surface.fillStyle(this.lighten(color, 0.24), 0.28).fillTriangle(96, 84, 64, 56, 104, 48);
-    surface.lineStyle(5, this.lighten(color, 0.52), 0.76).strokePoints(outer, true);
-    surface.lineStyle(2, 0xffffff, 0.24);
-    surface.lineBetween(64, 16, 64, 108);
-    surface.lineBetween(36, 26, 64, 56);
-    surface.lineBetween(92, 26, 64, 56);
-    surface.lineBetween(24, 48, 64, 56);
-    surface.lineBetween(104, 48, 64, 56);
-    surface.fillStyle(0xffffff, 0.12).fillEllipse(48, 28, 30, 16);
+    surface.fillStyle(highlight, 0.28).fillCircle(64, 64, 42);
+    surface.lineStyle(4, mixColor(color, 0xffffff, 0.42), 0.34).strokeCircle(64, 64, 40);
+
+    switch (index) {
+      case 0:
+        for (let petalIndex = 0; petalIndex < 5; petalIndex += 1) {
+          const angle = (Math.PI * 2 * petalIndex) / 5 - Math.PI / 2;
+          surface.fillStyle(color, 0.98).fillCircle(64 + Math.cos(angle) * 22, 64 + Math.sin(angle) * 22, 18);
+        }
+        surface.fillStyle(0xfff6c2, 0.98).fillCircle(64, 64, 16);
+        break;
+      case 1: {
+        const star = Array.from({ length: 10 }, (_, pointIndex) => {
+          const angle = -Math.PI / 2 + pointIndex * (Math.PI / 5);
+          const radius = pointIndex % 2 === 0 ? 34 : 16;
+          return new Phaser.Math.Vector2(64 + Math.cos(angle) * radius, 64 + Math.sin(angle) * radius);
+        });
+        surface.fillStyle(color, 1).fillPoints(star, true);
+        surface.lineStyle(4, stroke, 0.24).strokePoints(star, true);
+        break;
+      }
+      case 2:
+        surface.fillStyle(color, 0.84).fillCircle(56, 68, 28);
+        surface.fillStyle(mixColor(color, 0xffffff, 0.2), 0.76).fillCircle(80, 50, 18);
+        surface.fillStyle(0xffffff, 0.48).fillCircle(48, 58, 8);
+        surface.fillStyle(0xffffff, 0.34).fillCircle(76, 44, 5);
+        break;
+      case 3:
+        surface.fillStyle(color, 1);
+        surface.fillCircle(50, 48, 18);
+        surface.fillCircle(78, 48, 18);
+        surface.fillTriangle(30, 58, 98, 58, 64, 104);
+        break;
+      case 4: {
+        const leaf = [
+          new Phaser.Math.Vector2(64, 20),
+          new Phaser.Math.Vector2(92, 42),
+          new Phaser.Math.Vector2(76, 100),
+          new Phaser.Math.Vector2(64, 108),
+          new Phaser.Math.Vector2(52, 100),
+          new Phaser.Math.Vector2(36, 42)
+        ];
+        surface.fillStyle(color, 1).fillPoints(leaf, true);
+        surface.lineStyle(3, stroke, 0.24).strokePoints(leaf, true);
+        surface.lineStyle(4, mixColor(color, 0xffffff, 0.24), 0.44).lineBetween(64, 28, 64, 96);
+        break;
+      }
+      case 5:
+        surface.fillStyle(color, 1).fillCircle(64, 64, 26);
+        for (let rayIndex = 0; rayIndex < 8; rayIndex += 1) {
+          const angle = (Math.PI * 2 * rayIndex) / 8;
+          surface.lineStyle(8, color, 0.96).lineBetween(
+            64 + Math.cos(angle) * 34,
+            64 + Math.sin(angle) * 34,
+            64 + Math.cos(angle) * 46,
+            64 + Math.sin(angle) * 46
+          );
+        }
+        break;
+      default:
+        surface.lineStyle(6, stroke, 0.34).lineBetween(64, 86, 64, 44);
+        surface.fillStyle(color, 1).fillEllipse(50, 54, 26, 34);
+        surface.fillStyle(mixColor(color, 0xffffff, 0.1), 1).fillEllipse(78, 52, 28, 36);
+        break;
+    }
+
+    surface.fillStyle(0xffffff, 0.2).fillEllipse(50, 36, 28, 16);
     surface.generateTexture(key, 128, 128);
     surface.destroy();
   }
 
   private buildBackground(): void {
-    this.background = this.add.graphics();
+    this.background = this.add.graphics().setDepth(-40);
+    this.backgroundDecor = this.add.container(0, 0).setDepth(-38);
+  }
+
+  private refreshBackgroundDecor(width: number, height: number, theme: SceneTheme): void {
+    this.backgroundDecorElements.forEach((element) => {
+      this.tweens.killTweensOf(element);
+      element.destroy();
+    });
+    this.backgroundDecor.removeAll(false);
+    this.backgroundDecorElements = [];
+
+    const specs = [
+      { x: width * 0.14, y: height * 0.14, scale: 1.2, alpha: 0.32, tint: theme.backgroundOrbA, texture: 'bg-blob' },
+      { x: width * 0.82, y: height * 0.2, scale: 0.92, alpha: 0.28, tint: theme.backgroundOrbB, texture: 'bg-blob' },
+      { x: width * 0.18, y: height * 0.84, scale: 0.62, alpha: 0.46, tint: mixColor(theme.backgroundOrbA, 0xffffff, 0.26), texture: 'particle-bloom' },
+      { x: width * 0.86, y: height * 0.78, scale: 0.54, alpha: 0.42, tint: mixColor(theme.backgroundOrbB, 0xffffff, 0.34), texture: 'particle-heart' },
+      { x: width * 0.58, y: height * 0.12, scale: 0.7, alpha: 0.42, tint: mixColor(theme.backgroundOrbC, 0xffffff, 0.38), texture: 'particle-soft' },
+      { x: width * 0.76, y: height * 0.52, scale: 0.34, alpha: 0.36, tint: lighten(theme.backgroundOrbB, 0.24), texture: 'particle-streak' }
+    ];
+
+    specs.forEach((spec, index) => {
+      const element = this.add
+        .image(spec.x, spec.y, spec.texture)
+        .setScale(spec.scale)
+        .setAlpha(spec.alpha)
+        .setTint(spec.tint)
+        .setBlendMode(Phaser.BlendModes.SCREEN);
+
+      this.backgroundDecor.add(element);
+      this.backgroundDecorElements.push(element);
+
+      this.tweens.add({
+        targets: element,
+        x: spec.x + Phaser.Math.Between(-18, 22),
+        y: spec.y + Phaser.Math.Between(-22, 18),
+        angle: Phaser.Math.Between(-8, 8),
+        scaleX: spec.scale * Phaser.Math.FloatBetween(0.96, 1.08),
+        scaleY: spec.scale * Phaser.Math.FloatBetween(0.96, 1.1),
+        alpha: Phaser.Math.Clamp(spec.alpha + Phaser.Math.FloatBetween(-0.08, 0.08), 0.18, 0.54),
+        duration: Phaser.Math.Between(4200, 7000),
+        ease: WARM_EASING.soft,
+        yoyo: true,
+        repeat: -1,
+        delay: index * 180
+      });
+    });
   }
 
   private buildHud(): void {
@@ -292,9 +392,9 @@ class Match3Scene extends Phaser.Scene {
     this.thoughtPanel = new LiquidGlassPanel(this, 200, 100, 24, theme.panelAccent, theme.variant);
     this.topCenterPanel = new LiquidGlassPanel(this, 220, 54, 18, theme.panelAccent, theme.variant);
     this.actionPanel = new LiquidGlassPanel(this, 240, 60, 20, theme.panelAccent, theme.variant);
-    this.playerScorePanel = new LiquidGlassPanel(this, 180, 84, 22, 0x4fb3ff, theme.variant);
-    this.aiScorePanel = new LiquidGlassPanel(this, 180, 84, 22, 0xff9c7a, theme.variant);
-    this.streakPanel = new LiquidGlassPanel(this, 180, 84, 22, 0x61cfa8, theme.variant);
+    this.playerScorePanel = new LiquidGlassPanel(this, 180, 84, 22, 0xffa9b8, theme.variant);
+    this.aiScorePanel = new LiquidGlassPanel(this, 180, 84, 22, 0x8fd7be, theme.variant);
+    this.streakPanel = new LiquidGlassPanel(this, 180, 84, 22, 0xffd57a, theme.variant);
 
     this.hudTop.setDepth(220);
     this.hudBottom.setDepth(220);
@@ -306,136 +406,138 @@ class Match3Scene extends Phaser.Scene {
     this.streakPanel.setDepth(224);
 
     this.titleText = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
-      fontSize: '24px',
-      fontStyle: '700',
+      fontFamily: DISPLAY_FONT_FAMILY,
+      fontSize: '28px',
+      fontStyle: '800',
       color: theme.text
     }).setDepth(250);
     this.levelText = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+      fontFamily: UI_FONT_FAMILY,
       fontSize: '14px',
-      fontStyle: '700',
+      fontStyle: '800',
       color: theme.soft
     }).setDepth(248);
     this.detailText = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+      fontFamily: UI_FONT_FAMILY,
       fontSize: '13px',
       color: theme.muted
     }).setDepth(248);
     this.turnText = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+      fontFamily: DISPLAY_FONT_FAMILY,
       fontSize: '15px',
-      fontStyle: '700',
+      fontStyle: '800',
       color: theme.text
     }).setDepth(248);
     this.targetText = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+      fontFamily: UI_FONT_FAMILY,
       fontSize: '14px',
+      fontStyle: '700',
       color: theme.text
     }).setDepth(248);
     this.playerScoreLabel = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+      fontFamily: UI_FONT_FAMILY,
       fontSize: '13px',
       color: theme.muted
     }).setDepth(248);
     this.playerScoreText = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
-      fontSize: '20px',
-      fontStyle: '700',
+      fontFamily: DISPLAY_FONT_FAMILY,
+      fontSize: '22px',
+      fontStyle: '800',
       color: theme.text
     }).setDepth(252);
     this.aiScoreLabel = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+      fontFamily: UI_FONT_FAMILY,
       fontSize: '13px',
       color: theme.muted
     }).setDepth(248);
     this.aiScoreText = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
-      fontSize: '20px',
-      fontStyle: '700',
+      fontFamily: DISPLAY_FONT_FAMILY,
+      fontSize: '22px',
+      fontStyle: '800',
       color: theme.text
     }).setDepth(252);
     this.streakLabel = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+      fontFamily: UI_FONT_FAMILY,
       fontSize: '13px',
       color: theme.muted
     }).setDepth(248);
     this.streakText = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
-      fontSize: '20px',
-      fontStyle: '700',
+      fontFamily: DISPLAY_FONT_FAMILY,
+      fontSize: '22px',
+      fontStyle: '800',
       color: theme.text
     }).setDepth(252);
     this.playerTurnsText = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+      fontFamily: UI_FONT_FAMILY,
       fontSize: '13px',
       color: theme.muted
     }).setDepth(248);
     this.aiTurnsText = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+      fontFamily: UI_FONT_FAMILY,
       fontSize: '13px',
       color: theme.muted
     }).setDepth(248);
     this.statusText = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+      fontFamily: UI_FONT_FAMILY,
       fontSize: '15px',
+      fontStyle: '700',
       color: theme.text,
       align: 'left'
     }).setDepth(248);
     this.metaText = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+      fontFamily: UI_FONT_FAMILY,
       fontSize: '13px',
       color: theme.soft
     }).setDepth(248);
     this.thoughtTitleText = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
-      fontSize: '18px',
-      fontStyle: '700',
+      fontFamily: DISPLAY_FONT_FAMILY,
+      fontSize: '20px',
+      fontStyle: '800',
       color: theme.text
     }).setDepth(248);
     this.thoughtBodyText = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+      fontFamily: UI_FONT_FAMILY,
       fontSize: '14px',
       color: theme.muted,
       lineSpacing: 4
     }).setDepth(248);
     this.thoughtViz = this.add.graphics().setDepth(247);
     this.thoughtVizLabelText = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+      fontFamily: UI_FONT_FAMILY,
       fontSize: '13px',
-      fontStyle: '700',
+      fontStyle: '800',
       color: theme.soft
     }).setDepth(248);
     this.thoughtVizMoveText = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+      fontFamily: DISPLAY_FONT_FAMILY,
       fontSize: '16px',
-      fontStyle: '700',
+      fontStyle: '800',
       color: theme.text
     }).setDepth(248);
     this.thoughtVizMetaText = this.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+      fontFamily: UI_FONT_FAMILY,
       fontSize: '13px',
       color: theme.muted
     }).setDepth(248);
 
-    this.hintButton = new LiquidGlassButton(this, 144, 46, 0x4fb3ff, theme.variant, () => {
+    this.hintButton = new LiquidGlassButton(this, 148, 48, 0xffa5a5, theme.variant, () => {
       void this.showHint();
     });
     this.hintButton.setDepth(260);
 
-    this.restartButton = new LiquidGlassButton(this, 126, 46, 0xff9c7a, theme.variant, () => {
+    this.restartButton = new LiquidGlassButton(this, 132, 48, 0xffbf77, theme.variant, () => {
       this.sfx.playToggle();
       this.startLevel(this.levelId);
     });
     this.restartButton.setDepth(260);
 
-    this.nextButton = new LiquidGlassButton(this, 150, 46, 0x61cfa8, theme.variant, () => {
+    this.nextButton = new LiquidGlassButton(this, 156, 48, 0x8ad7b2, theme.variant, () => {
       this.startLevel(this.levelCompleted ? this.levelId + 1 : this.levelId);
     });
     this.nextButton.setDepth(260);
     this.nextButton.setVisible(false);
 
-    this.pauseButton = new LiquidGlassButton(this, 86, 44, theme.panelAccent, theme.variant, () => {
+    this.pauseButton = new LiquidGlassButton(this, 92, 44, theme.panelAccent, theme.variant, () => {
       this.sfx.playToggle();
       this.toggleSettingsMenu();
     });
@@ -471,12 +573,12 @@ class Match3Scene extends Phaser.Scene {
     this.thoughtPanel.setAccent(this.level.accentColor);
     this.topCenterPanel.setAccent(this.level.accentColor);
     this.actionPanel.setAccent(this.level.accentColor);
-    this.playerScorePanel.setAccent(0x50e3ff);
-    this.aiScorePanel.setAccent(0xff7eff);
-    this.streakPanel.setAccent(0xffd166);
-    this.hintButton.setAccent(0x50e3ff);
-    this.restartButton.setAccent(0xff7eff);
-    this.nextButton.setAccent(0xffd166);
+    this.playerScorePanel.setAccent(0xffa9b8);
+    this.aiScorePanel.setAccent(0x8fd7be);
+    this.streakPanel.setAccent(0xffd57a);
+    this.hintButton.setAccent(0xff9fb1);
+    this.restartButton.setAccent(0xffbf77);
+    this.nextButton.setAccent(0xffd57a);
     this.pauseButton.setAccent(this.getSceneTheme().panelAccent).setVariant(this.getSceneTheme().variant);
     this.scores = { player: 0, ai: 0 };
     this.turnsLeft = {
@@ -502,10 +604,19 @@ class Match3Scene extends Phaser.Scene {
         onCascade: (step, index) => {
           this.sfx.playCascade(index + 1, step.cleared);
 
-          if (index > 0 || step.cleared >= 5) {
-            const duration = Math.min(220, 110 + index * 45 + step.cleared * 10);
-            const intensity = Math.min(0.006, 0.0015 + index * 0.0008 + step.cleared * 0.00025);
-            this.cameras.main.shake(duration, intensity);
+          const duration = Math.min(240, 120 + index * 36 + step.cleared * 12);
+          const intensity = Math.min(0.0036, 0.0012 + index * 0.0004 + step.cleared * 0.00016);
+          this.cameras.main.shake(duration, intensity);
+
+          if (index > 0 || step.cleared >= 4) {
+            const pulse = mixColor(this.level.accentColor, 0xffe4bb, 0.42);
+            this.cameras.main.flash(
+              Math.min(180, 80 + index * 30 + step.cleared * 10),
+              (pulse >> 16) & 0xff,
+              (pulse >> 8) & 0xff,
+              pulse & 0xff,
+              true
+            );
           }
         }
       }
@@ -531,12 +642,24 @@ class Match3Scene extends Phaser.Scene {
 
     this.background.clear();
     const theme = this.getSceneTheme();
-    this.background.fillStyle(theme.background, 1).fillRect(0, 0, width, height);
-    this.background.fillStyle(0xffffff, 0.9).fillRoundedRect(10, 10, width - 20, height - 20, 24);
-    this.background.fillStyle(theme.backgroundOrbA, 0.04).fillEllipse(width * 0.22, height * 0.16, 220, 160);
-    this.background.fillStyle(theme.backgroundOrbB, 0.035).fillEllipse(width * 0.8, height * 0.74, 260, 180);
-    this.background.lineStyle(1, 0xcfdceb, 0.65).strokeRoundedRect(10, 10, width - 20, height - 20, 24);
-    this.background.fillStyle(0xffffff, 0.7).fillRoundedRect(16, 16, width - 32, 54, 20);
+    this.background.fillGradientStyle(
+      theme.background,
+      mixColor(theme.background, theme.backgroundOrbA, 0.12),
+      mixColor(theme.background, theme.backgroundOrbB, 0.2),
+      mixColor(theme.background, theme.backgroundOrbC, 0.22),
+      1,
+      1,
+      1,
+      1
+    );
+    this.background.fillRect(0, 0, width, height);
+    this.background.fillStyle(0xffffff, 0.18).fillEllipse(width * 0.18, height * 0.16, width * 0.36, height * 0.24);
+    this.background.fillStyle(theme.backgroundOrbA, 0.2).fillEllipse(width * 0.16, height * 0.18, width * 0.3, height * 0.2);
+    this.background.fillStyle(theme.backgroundOrbB, 0.18).fillEllipse(width * 0.82, height * 0.72, width * 0.34, height * 0.26);
+    this.background.fillStyle(theme.backgroundOrbC, 0.12).fillEllipse(width * 0.54, height * 0.84, width * 0.44, height * 0.18);
+    this.background.fillStyle(0xffffff, 0.56).fillRoundedRect(12, 12, width - 24, height - 24, 30);
+    this.background.lineStyle(2, 0xffffff, 0.42).strokeRoundedRect(12, 12, width - 24, height - 24, 30);
+    this.refreshBackgroundDecor(width, height, theme);
 
     if (this.landscape) {
       const topHeight = 82;
@@ -779,7 +902,7 @@ class Match3Scene extends Phaser.Scene {
       this.board?.showMovePreview(
         candidate.move,
         candidate.previewCells,
-        candidate === decision.selected ? 0xffd166 : 0x5dd6ff
+        candidate === decision.selected ? 0xffcf75 : 0xffa4b8
       );
       this.sfx.playAiFocus(index);
       this.refreshAllText();
@@ -815,9 +938,9 @@ class Match3Scene extends Phaser.Scene {
 
     if (scoreDelta > 0) {
       if (owner === 'player') {
-        this.pulseMetric(this.playerScoreText, this.mixColor(0x5dd6ff, 0xffd166, Math.min(1, this.scores.player / this.level.targetScore)), scoreDelta);
+        this.pulseMetric(this.playerScoreText, this.mixColor(0xffa9b8, 0xffd57a, Math.min(1, this.scores.player / this.level.targetScore)), scoreDelta);
       } else {
-        this.pulseMetric(this.aiScoreText, this.mixColor(0xff7eff, 0xffd166, Math.min(1, this.scores.ai / this.level.targetScore)), scoreDelta);
+        this.pulseMetric(this.aiScoreText, this.mixColor(0x8fd7be, 0xffc587, Math.min(1, this.scores.ai / this.level.targetScore)), scoreDelta);
       }
     }
   }
@@ -834,7 +957,7 @@ class Match3Scene extends Phaser.Scene {
       this.playerWinStreak = cleanClear ? this.playerWinStreak + 1 : 0;
       this.updateAdaptiveDepth();
       if (this.playerWinStreak !== previousStreak) {
-        this.pulseMetric(this.streakText, this.mixColor(0x7df9ff, 0xffd166, Math.min(1, this.playerWinStreak / 5)), this.playerWinStreak);
+        this.pulseMetric(this.streakText, this.mixColor(0xffb0a7, 0xffd57a, Math.min(1, this.playerWinStreak / 5)), this.playerWinStreak);
       }
       this.board?.setPlayerInputEnabled(false);
       this.hintButton.setVisible(false);
@@ -1021,19 +1144,19 @@ class Match3Scene extends Phaser.Scene {
 
     this.thoughtViz.clear();
     this.thoughtViz
-      .fillStyle(0xffffff, 0.82)
+      .fillStyle(0xfffbf7, 0.84)
       .fillRoundedRect(summaryCard.x, summaryCard.y, summaryCard.width, summaryCard.height, 18)
-      .lineStyle(1, 0xdbe6f0, 0.96)
+      .lineStyle(1, mixColor(accent, 0xffffff, 0.42), 0.9)
       .strokeRoundedRect(summaryCard.x, summaryCard.y, summaryCard.width, summaryCard.height, 18)
-      .fillStyle(0xffffff, 0.74)
+      .fillStyle(0xfffaf4, 0.78)
       .fillRoundedRect(visualCard.x, visualCard.y, visualCard.width, visualCard.height, 18)
-      .lineStyle(1, 0xdbe6f0, 0.9)
+      .lineStyle(1, mixColor(accent, 0xffffff, 0.35), 0.86)
       .strokeRoundedRect(visualCard.x, visualCard.y, visualCard.width, visualCard.height, 18)
-      .fillStyle(0xffffff, 0.82)
+      .fillStyle(0xfffbf7, 0.84)
       .fillRoundedRect(stateCard.x, stateCard.y, stateCard.width, stateCard.height, 18)
-      .lineStyle(1, 0xdbe6f0, 0.96)
+      .lineStyle(1, mixColor(accent, 0xffffff, 0.42), 0.9)
       .strokeRoundedRect(stateCard.x, stateCard.y, stateCard.width, stateCard.height, 18)
-      .fillStyle(0xe8eff7, 0.92)
+      .fillStyle(0xf3ddd2, 0.9)
       .fillRoundedRect(visualCard.x + 14, visualCard.y + visualCard.height - 24, visualCard.width - 28, 6, 3)
       .fillStyle(accent, 0.9)
       .fillRoundedRect(
@@ -1043,7 +1166,7 @@ class Match3Scene extends Phaser.Scene {
         6,
         3
       )
-      .fillStyle(this.mixColor(accent, 0x69c39f, 0.3), 0.42)
+      .fillStyle(this.mixColor(accent, 0x8fd7be, 0.32), 0.46)
       .fillRoundedRect(
         visualCard.x + 14,
         visualCard.y + visualCard.height - 12,
@@ -1110,10 +1233,10 @@ class Match3Scene extends Phaser.Scene {
 
   private getLevelDescription(): string {
     if (this.language === 'zh') {
-      return `${this.level.rows}x${this.level.cols} 棋盘 / ${this.level.colorCount} 色 / 每方 ${this.level.turnsPerSide} 回合`;
+      return `${this.level.rows}x${this.level.cols} 棋盘 / ${this.level.colorCount} 种积极元素 / 每方 ${this.level.turnsPerSide} 回合`;
     }
 
-    return `${this.level.rows}x${this.level.cols} grid / ${this.level.colorCount} gem types / ${this.level.turnsPerSide} rounds per side`;
+    return `${this.level.rows}x${this.level.cols} board / ${this.level.colorCount} uplifting tile types / ${this.level.turnsPerSide} rounds per side`;
   }
 
   private getMetaText(): string {
@@ -1121,40 +1244,42 @@ class Match3Scene extends Phaser.Scene {
   }
 
   private getSceneTheme(): SceneTheme {
-    const accent = this.level?.accentColor ?? 0x5aa9ff;
+    const accent = this.level?.accentColor ?? JOYFUL_SURFACE.apricot;
 
     if (this.themeMode === 'dark') {
       return {
         mode: 'dark',
         variant: 'dark',
-        background: 0x0a1220,
-        backgroundOrbA: 0x19344f,
-        backgroundOrbB: 0x2a1842,
+        background: 0x231b32,
+        backgroundOrbA: 0x6b597e,
+        backgroundOrbB: 0x3d6a61,
+        backgroundOrbC: 0x855c6f,
         accent,
-        text: '#edf7ff',
-        muted: '#a9bfd3',
-        soft: '#86a9c7',
-        panelAccent: accent
+        text: '#fff6ef',
+        muted: '#d6c8dd',
+        soft: '#f2d9d2',
+        panelAccent: mixColor(accent, 0xffffff, 0.12)
       };
     }
 
     return {
       mode: 'light',
       variant: 'light',
-      background: 0xf6f9fc,
-      backgroundOrbA: 0xdde9f4,
-      backgroundOrbB: 0xe4eef5,
+      background: 0xfff3ee,
+      backgroundOrbA: 0xffdbe9,
+      backgroundOrbB: 0xcdf1df,
+      backgroundOrbC: 0xddeaff,
       accent,
-      text: '#23384d',
-      muted: '#667a8f',
-      soft: '#54718c',
-      panelAccent: this.mixColor(accent, 0xffffff, 0.32)
+      text: '#5d4a64',
+      muted: '#856f83',
+      soft: '#aa8878',
+      panelAccent: mixColor(accent, 0xffffff, 0.42)
     };
   }
 
   private applyTheme(): void {
     const theme = this.getSceneTheme();
-    const scoreLabelColor = theme.mode === 'light' ? '#6b7f93' : '#b6cad8';
+    const scoreLabelColor = theme.mode === 'light' ? '#8a7688' : '#e2d7e6';
 
     this.hudTop.setAccent(theme.panelAccent).setVariant(theme.variant);
     this.hudBottom.setAccent(theme.panelAccent).setVariant(theme.variant);
@@ -1274,9 +1399,9 @@ class Match3Scene extends Phaser.Scene {
     const aiRatio = Math.min(1, this.scores.ai / Math.max(1, this.level.targetScore));
     const streakRatio = Math.min(1, this.playerWinStreak / 5);
 
-    const playerColor = this.mixColor(0x8deaff, 0xffd166, playerRatio);
-    const aiColor = this.mixColor(0xf49cff, 0xffa85b, aiRatio);
-    const streakColor = this.mixColor(0x8deaff, 0xffd166, streakRatio);
+    const playerColor = this.mixColor(0xffa9b8, 0xffd57a, playerRatio);
+    const aiColor = this.mixColor(0x8fd7be, 0xffb27d, aiRatio);
+    const streakColor = this.mixColor(0xffb1a5, 0xffd57a, streakRatio);
 
     this.playerScoreText.setColor(this.hexToCss(playerColor));
     this.aiScoreText.setColor(this.hexToCss(aiColor));
@@ -1288,7 +1413,7 @@ class Match3Scene extends Phaser.Scene {
     this.hudBottom.setAccent(this.getSceneTheme().panelAccent);
     this.thoughtPanel.setAccent(this.getSceneTheme().panelAccent);
     this.hintButton.setAccent(playerColor);
-    this.restartButton.setAccent(this.mixColor(0xff9c7a, this.level.accentColor, 0.3));
+    this.restartButton.setAccent(this.mixColor(0xffbf77, this.level.accentColor, 0.2));
     this.nextButton.setAccent(streakColor);
   }
 
@@ -1312,10 +1437,10 @@ class Match3Scene extends Phaser.Scene {
       scale: { start: 0.5, end: 0 },
       alpha: { start: 0.9, end: 0 },
       lifespan: 900,
-      blendMode: Phaser.BlendModes.ADD,
-      tint: [this.level.accentColor, 0xffd166, 0x7df9ff, 0xffffff]
+      blendMode: Phaser.BlendModes.SCREEN,
+      tint: [this.level.accentColor, 0xffd57a, 0xffb3be, 0xffffff]
     }).setDepth(382);
-    const streamers = this.add.particles(0, 0, 'particle-streak', {
+    const streamers = this.add.particles(0, 0, 'particle-petal', {
       x: { min: width * 0.18, max: width * 0.82 },
       y: height * 0.12,
       speedY: { min: 120, max: 240 },
@@ -1323,14 +1448,14 @@ class Match3Scene extends Phaser.Scene {
       scale: { start: 0.28, end: 0.04 },
       alpha: { start: 0.86, end: 0 },
       lifespan: 1100,
-      blendMode: Phaser.BlendModes.ADD,
-      tint: [this.level.accentColor, 0xffd166, 0xff7eff, 0x7df9ff]
+      blendMode: Phaser.BlendModes.SCREEN,
+      tint: [this.level.accentColor, 0xffd57a, 0xffa9b8, 0x8fd7be]
     }).setDepth(382);
 
     this.tweens.timeScale = 0.7;
     this.time.timeScale = 0.7;
-    camera.shake(420, 0.007);
-    camera.flash(180, 255, 248, 220, true);
+    camera.shake(360, 0.0042);
+    camera.flash(200, 255, 232, 205, true);
     fireworks.explode(48, width * 0.5, height * 0.44);
     streamers.explode(36, width * 0.5, height * 0.2);
 
@@ -1342,7 +1467,7 @@ class Match3Scene extends Phaser.Scene {
       scaleY: 8.2,
       alpha: 0,
       duration: 720,
-      ease: 'Quad.Out',
+      ease: WARM_EASING.lift,
       onComplete: () => bloom.destroy()
     });
 
@@ -1350,7 +1475,7 @@ class Match3Scene extends Phaser.Scene {
       targets: overlay,
       alpha: 0,
       duration: 760,
-      ease: 'Sine.Out',
+      ease: WARM_EASING.reveal,
       onComplete: () => overlay.destroy()
     });
 
@@ -1365,18 +1490,18 @@ class Match3Scene extends Phaser.Scene {
     this.tweens.killTweensOf(target);
     this.tweens.add({
       targets: target,
-      scaleX: 1.18,
-      scaleY: 1.18,
-      duration: 120,
+      scaleX: 1.16,
+      scaleY: 1.16,
+      duration: 160,
       yoyo: true,
-      ease: 'Back.Out'
+      ease: WARM_EASING.settle
     });
 
     const popup = this.add
       .text(target.x + target.width + 12, target.y + 2, `+${value}`, {
-        fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+        fontFamily: DISPLAY_FONT_FAMILY,
         fontSize: '18px',
-        fontStyle: '700',
+        fontStyle: '800',
         color: this.hexToCss(color)
       })
       .setOrigin(0, 0.5)
@@ -1387,7 +1512,7 @@ class Match3Scene extends Phaser.Scene {
       y: popup.y - 28,
       alpha: 0,
       duration: 520,
-      ease: 'Sine.Out',
+      ease: WARM_EASING.reveal,
       onComplete: () => popup.destroy()
     });
 
@@ -1396,13 +1521,13 @@ class Match3Scene extends Phaser.Scene {
         .image(
           target.x + Phaser.Math.Between(-8, Math.max(12, Math.floor(target.width * 0.7))),
           target.y + Phaser.Math.Between(-8, 12),
-          index % 2 === 0 ? 'particle-soft' : 'particle-streak'
+          index % 2 === 0 ? 'particle-soft' : index % 3 === 0 ? 'particle-heart' : 'particle-petal'
         )
         .setTint(index % 2 === 0 ? color : this.lighten(color, 0.28))
         .setAlpha(0.88)
-        .setScale(index % 2 === 0 ? 0.18 : 0.14)
+        .setScale(index % 2 === 0 ? 0.18 : 0.16)
         .setDepth(258)
-        .setBlendMode(Phaser.BlendModes.ADD);
+        .setBlendMode(Phaser.BlendModes.SCREEN);
 
       this.tweens.add({
         targets: mote,
@@ -1412,7 +1537,7 @@ class Match3Scene extends Phaser.Scene {
         scaleX: 0.02,
         scaleY: 0.02,
         duration: Phaser.Math.Between(260, 420),
-        ease: 'Cubic.Out',
+        ease: WARM_EASING.lift,
         onComplete: () => mote.destroy()
       });
     }
@@ -1466,7 +1591,7 @@ export const bootstrapGame = (): Phaser.Game => {
   const config = {
     type: Phaser.AUTO,
     parent: 'app',
-    backgroundColor: '#f6f9fc',
+    backgroundColor: '#fff3ee',
     scene: [Match3Scene],
     width: 1280,
     height: 720,

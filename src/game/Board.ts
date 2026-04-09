@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { Tile } from './Tile';
+import { DISPLAY_FONT_FAMILY, UI_FONT_FAMILY, WARM_EASING, darken, hexToCss, lighten, mixColor } from './visuals';
 import {
   BoardCallbacks,
   BoardLayout,
@@ -98,22 +99,22 @@ export class Board {
     this.boardGlow = scene.add.graphics().setDepth(2);
     this.boardSurface = scene.add.graphics().setDepth(3);
     this.ambientLayer = scene.add.container(0, 0).setDepth(4);
-    this.particles = scene.add.particles(0, 0, 'particle-streak', {
-      lifespan: 360,
-      speed: { min: 90, max: 240 },
-      scale: { start: 0.52, end: 0 },
-      rotate: { min: -260, max: 260 },
-      alpha: { start: 0.92, end: 0 },
-      blendMode: Phaser.BlendModes.ADD,
+    this.particles = scene.add.particles(0, 0, 'particle-petal', {
+      lifespan: { min: 380, max: 620 },
+      speed: { min: 30, max: 190 },
+      scale: { start: 0.34, end: 0 },
+      rotate: { min: -180, max: 180 },
+      alpha: { start: 0.94, end: 0 },
+      blendMode: Phaser.BlendModes.SCREEN,
       tint: level.palette.slice(0, level.colorCount)
     });
-    this.sparkParticles = scene.add.particles(0, 0, 'particle-soft', {
-      lifespan: 260,
-      speed: { min: 20, max: 120 },
-      scale: { start: 0.74, end: 0 },
+    this.sparkParticles = scene.add.particles(0, 0, 'particle-bloom', {
+      lifespan: { min: 300, max: 520 },
+      speed: { min: 16, max: 110 },
+      scale: { start: 0.26, end: 0 },
       rotate: { min: -180, max: 180 },
-      alpha: { start: 0.62, end: 0 },
-      blendMode: Phaser.BlendModes.ADD,
+      alpha: { start: 0.78, end: 0 },
+      blendMode: Phaser.BlendModes.SCREEN,
       tint: level.palette.slice(0, level.colorCount)
     });
     this.particles.setDepth(175);
@@ -356,16 +357,23 @@ export class Board {
     const endX = to.x - Math.cos(angle) * offset;
     const endY = to.y - Math.sin(angle) * offset;
 
-    this.movePreviewOverlay.lineStyle(11, color, 0.14).lineBetween(startX, startY, endX, endY);
     this.movePreviewOverlay
-      .lineStyle(4, this.lighten(color, 0.26), 0.94)
-      .lineBetween(startX, startY, endX, endY);
+      .lineStyle(14, color, 0.12)
+      .lineBetween(startX, startY, endX, endY)
+      .lineStyle(7, this.lighten(color, 0.26), 0.34)
+      .lineBetween(startX, startY, endX, endY)
+      .lineStyle(3, 0xffffff, 0.88)
+      .lineBetween(startX, startY, endX, endY)
+      .fillStyle(this.lighten(color, 0.3), 0.26)
+      .fillCircle(startX, startY, this.layout.cellSize * 0.18)
+      .fillStyle(this.lighten(color, 0.22), 0.28)
+      .fillCircle(endX, endY, this.layout.cellSize * 0.22);
 
     const leftAngle = angle + Math.PI * 0.84;
     const rightAngle = angle - Math.PI * 0.84;
 
     this.movePreviewOverlay
-      .fillStyle(color, 0.95)
+      .fillStyle(this.lighten(color, 0.08), 0.95)
       .fillTriangle(
         to.x,
         to.y,
@@ -394,8 +402,10 @@ export class Board {
       const size = this.layout.cellSize * 0.72;
 
       this.movePreviewOverlay
-        .lineStyle(3, color, 0.55)
-        .strokeRoundedRect(point.x - size / 2, point.y - size / 2, size, size, 14);
+        .fillStyle(this.lighten(color, 0.22), 0.16)
+        .fillRoundedRect(point.x - size / 2, point.y - size / 2, size, size, 16)
+        .lineStyle(3, color, 0.5)
+        .strokeRoundedRect(point.x - size / 2, point.y - size / 2, size, size, 16);
 
       const tile = this.getTileAt(cell);
       if (tile && !this.previewGlowTiles.includes(tile)) {
@@ -796,8 +806,8 @@ export class Board {
             alpha: 0,
             scaleX: 0.6,
             scaleY: 0.6,
-            duration: 180,
-            ease: 'Quad.In'
+            duration: 220,
+            ease: WARM_EASING.press
           })
         )
       );
@@ -838,8 +848,8 @@ export class Board {
             scaleX: 1,
             scaleY: 1,
             delay: index * 12,
-            duration: 220,
-            ease: 'Back.Out'
+            duration: 260,
+            ease: WARM_EASING.settle
           })
         )
       );
@@ -1017,31 +1027,33 @@ export class Board {
 
     this.boardShadow
       .clear()
-      .fillStyle(0xc3d0dd, 0.22)
-      .fillRoundedRect(frame.x + 8, frame.y + 12, frame.width, frame.height, 30);
+      .fillStyle(0xb88b8d, 0.14)
+      .fillRoundedRect(frame.x + 8, frame.y + 12, frame.width, frame.height, 34);
 
     this.boardBackdrop.clear();
     this.boardBackdrop.fillGradientStyle(
-      0xfcfdff,
-      0xf6f9fc,
-      0xeff4f9,
-      0xeaf1f8,
-      0.98,
-      0.95,
-      0.98,
-      0.99
+      0xfffbf7,
+      this.lighten(this.level.backgroundTop, 0.42),
+      this.lighten(this.level.backgroundBottom, 0.36),
+      0xfff6ee,
+      0.92,
+      0.88,
+      0.94,
+      0.96
     );
-    this.boardBackdrop.fillRoundedRect(frame.x, frame.y, frame.width, frame.height, 30);
+    this.boardBackdrop.fillRoundedRect(frame.x, frame.y, frame.width, frame.height, 34);
     this.boardBackdrop
-      .fillStyle(0xffffff, 0.76)
-      .fillRoundedRect(frame.x + 6, frame.y + 6, frame.width - 12, frame.height * 0.18, 24);
+      .fillStyle(0xffffff, 0.48)
+      .fillRoundedRect(frame.x + 8, frame.y + 8, frame.width - 16, frame.height * 0.16, 26)
+      .fillStyle(this.lighten(this.level.accentColor, 0.42), 0.08)
+      .fillEllipse(frame.centerX, frame.y + frame.height * 0.16, frame.width * 0.72, frame.height * 0.18);
 
     this.boardSurface
       .clear()
-      .lineStyle(2, 0xd9e5f0, 0.96)
-      .strokeRoundedRect(frame.x, frame.y, frame.width, frame.height, 30)
-      .lineStyle(1, this.lighten(this.level.accentColor, 0.2), 0.18)
-      .strokeRoundedRect(frame.x + 4, frame.y + 4, frame.width - 8, frame.height - 8, 26);
+      .lineStyle(2, this.lighten(this.level.accentColor, 0.28), 0.58)
+      .strokeRoundedRect(frame.x, frame.y, frame.width, frame.height, 34)
+      .lineStyle(1, 0xffffff, 0.78)
+      .strokeRoundedRect(frame.x + 4, frame.y + 4, frame.width - 8, frame.height - 8, 28);
 
     for (let row = 0; row < this.snapshot.rows; row += 1) {
       for (let col = 0; col < this.snapshot.cols; col += 1) {
@@ -1051,10 +1063,12 @@ export class Board {
         const slotY = position.y - size / 2;
 
         this.boardSurface
-          .fillGradientStyle(0xffffff, 0xfafcff, 0xf4f8fc, 0xf0f5fb, 0.88, 0.82, 0.92, 0.94)
-          .fillRoundedRect(slotX, slotY, size, size, 18)
-          .lineStyle(1, 0xdbe6f1, 0.9)
-          .strokeRoundedRect(slotX, slotY, size, size, 20);
+          .fillGradientStyle(0xffffff, 0xfff7f4, 0xfff0eb, 0xfffbf7, 0.72, 0.68, 0.8, 0.84)
+          .fillRoundedRect(slotX, slotY, size, size, 20)
+          .lineStyle(1, this.lighten(this.level.accentColor, 0.44), 0.38)
+          .strokeRoundedRect(slotX, slotY, size, size, 20)
+          .fillStyle(0xffffff, 0.24)
+          .fillRoundedRect(slotX + 5, slotY + 4, size - 10, size * 0.22, 14);
       }
     }
   }
@@ -1081,15 +1095,19 @@ export class Board {
     endY: number,
     color: number
   ): void {
-    const pulseCount = 3;
+    const pulseCount = 4;
 
     for (let index = 0; index < pulseCount; index += 1) {
       const pulse = this.scene.add
-        .image(startX, startY, index === pulseCount - 1 ? 'particle-streak' : 'particle-soft')
-        .setTint(index === pulseCount - 1 ? 0xffffff : this.lighten(color, 0.28))
-        .setAlpha(index === pulseCount - 1 ? 0.95 : 0.72)
-        .setScale(index === pulseCount - 1 ? 0.18 : 0.26)
-        .setBlendMode(Phaser.BlendModes.ADD);
+        .image(
+          startX,
+          startY,
+          index === pulseCount - 1 ? 'particle-streak' : index % 2 === 0 ? 'particle-bloom' : 'particle-soft'
+        )
+        .setTint(index === pulseCount - 1 ? 0xffffff : this.lighten(color, 0.3))
+        .setAlpha(index === pulseCount - 1 ? 0.9 : 0.76)
+        .setScale(index === pulseCount - 1 ? 0.16 : 0.22)
+        .setBlendMode(Phaser.BlendModes.SCREEN);
 
       this.previewPulseLayer.add(pulse);
       this.previewPulses.push(pulse);
@@ -1099,10 +1117,10 @@ export class Board {
         x: endX,
         y: endY,
         alpha: { from: pulse.alpha, to: 0.12 },
-        duration: 440,
-        ease: 'Sine.InOut',
+        duration: 520,
+        ease: WARM_EASING.soft,
         repeat: -1,
-        delay: index * 140
+        delay: index * 150
       });
     }
   }
@@ -1136,14 +1154,16 @@ export class Board {
 
     this.boardGlow.clear();
     this.boardGlow
-      .fillStyle(0xffffff, 0.14)
+      .fillStyle(0xffffff, 0.12)
       .fillEllipse(
         frame.x + frame.width * 0.5,
         frame.y + frame.height * 0.12,
         frame.width * 0.64,
         frame.height * 0.1
       )
-      .lineStyle(2, accent, 0.08 + Math.sin(this.auraPhase * 1.1) * 0.02)
+      .fillStyle(accent, 0.04 + Math.sin(this.auraPhase * 1.1) * 0.02)
+      .fillEllipse(frame.centerX, frame.bottom - frame.height * 0.14, frame.width * 0.52, frame.height * 0.08)
+      .lineStyle(2, accent, 0.1 + Math.sin(this.auraPhase * 1.1) * 0.02)
       .strokeRoundedRect(frame.x + 2, frame.y + 2, frame.width - 4, frame.height - 4, 30);
   }
 
@@ -1163,16 +1183,16 @@ export class Board {
         .image(
           Phaser.Math.Between(frame.x + 20, frame.right - 20),
           Phaser.Math.Between(frame.y + 20, frame.bottom - 20),
-          'particle-soft'
+          index % 3 === 0 ? 'particle-bloom' : index % 2 === 0 ? 'particle-soft' : 'particle-petal'
         )
         .setTint(
           index % 2 === 0
-            ? 0xdbe8f3
-            : this.lighten(this.level.accentColor, 0.52)
+            ? this.lighten(this.level.accentColor, 0.48)
+            : mixColor(this.level.accentColor, 0xffffff, 0.46)
         )
-        .setAlpha(Phaser.Math.FloatBetween(0.03, 0.08))
-        .setScale(Phaser.Math.FloatBetween(0.12, 0.2))
-        .setBlendMode(Phaser.BlendModes.ADD);
+        .setAlpha(Phaser.Math.FloatBetween(0.04, 0.1))
+        .setScale(Phaser.Math.FloatBetween(0.1, 0.18))
+        .setBlendMode(Phaser.BlendModes.SCREEN);
 
       this.ambientLayer.add(mote);
       this.ambientMotes.push(mote);
@@ -1185,7 +1205,7 @@ export class Board {
         scaleX: mote.scaleX * Phaser.Math.FloatBetween(1.08, 1.38),
         scaleY: mote.scaleY * Phaser.Math.FloatBetween(1.08, 1.38),
         duration: Phaser.Math.Between(4200, 7000),
-        ease: 'Sine.InOut',
+        ease: WARM_EASING.soft,
         yoyo: true,
         repeat: -1,
         delay: index * 110
@@ -1222,8 +1242,8 @@ export class Board {
     await this.tween(tile, {
       x: position.x,
       y: position.y,
-      duration: 140,
-      ease: 'Sine.Out'
+      duration: 180,
+      ease: WARM_EASING.reveal
     });
   }
 
@@ -1240,14 +1260,14 @@ export class Board {
       this.tween(first, {
         x: firstPosition.x,
         y: firstPosition.y,
-        duration: 130,
-        ease: 'Sine.Out'
+        duration: 180,
+        ease: WARM_EASING.settle
       }),
       this.tween(second, {
         x: secondPosition.x,
         y: secondPosition.y,
-        duration: 130,
-        ease: 'Sine.Out'
+        duration: 180,
+        ease: WARM_EASING.settle
       })
     ]);
   }
@@ -1271,6 +1291,7 @@ export class Board {
     const comboPower = 1 + index * 0.38 + Math.min(0.9, Math.max(0, step.cleared - 3) * 0.08);
 
     this.showScorePopup(step.score, step.matchedCells, index);
+    this.createCelebrationPulse(step, comboPower);
 
     await Promise.all(
       matchedTiles.map(async (tile) => {
@@ -1304,8 +1325,8 @@ export class Board {
         this.tween(tile, {
           x: destination.x,
           y: destination.y,
-          duration: 160 + Math.abs(drop.toRow - drop.fromRow) * 26,
-          ease: 'Quad.Out'
+          duration: 190 + Math.abs(drop.toRow - drop.fromRow) * 28,
+          ease: WARM_EASING.settle
         })
       );
     }
@@ -1339,8 +1360,8 @@ export class Board {
           alpha: 1,
           scaleX: 1,
           scaleY: 1,
-          duration: 220 + Math.abs(spawn.spawnRow) * 20,
-          ease: 'Back.Out'
+          duration: 260 + Math.abs(spawn.spawnRow) * 20,
+          ease: WARM_EASING.elastic
         })
       );
     }
@@ -1365,15 +1386,15 @@ export class Board {
       { x: 0, y: 0 }
     );
 
-    const label = comboIndex > 0 ? `+${score} COMBO` : `+${score}`;
+    const label = comboIndex > 0 ? `+${score} x${comboIndex + 1}` : `+${score}`;
     const text = this.scene.add
       .text(center.x / cells.length, center.y / cells.length, label, {
-        fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+        fontFamily: DISPLAY_FONT_FAMILY,
         fontSize: '26px',
-        fontStyle: '700',
-        color: '#f7fbff',
-        stroke: '#08111f',
-        strokeThickness: 6
+        fontStyle: '800',
+        color: hexToCss(mixColor(this.level.accentColor, 0xfff2b8, 0.44)),
+        stroke: '#fffaf4',
+        strokeThickness: 4
       })
       .setOrigin(0.5)
       .setDepth(500);
@@ -1382,7 +1403,7 @@ export class Board {
       y: text.y - 42,
       alpha: 0,
       duration: 640,
-      ease: 'Sine.Out'
+      ease: WARM_EASING.reveal
     }).then(() => text.destroy());
   }
 
@@ -1390,18 +1411,18 @@ export class Board {
     const flash = this.scene.add
       .image(x, y, 'particle-soft')
       .setTint(this.lighten(color, 0.42))
-      .setAlpha(0.7)
-      .setScale(0.34)
+      .setAlpha(0.72)
+      .setScale(0.38)
       .setDepth(174)
-      .setBlendMode(Phaser.BlendModes.ADD);
+      .setBlendMode(Phaser.BlendModes.SCREEN);
 
     this.scene.tweens.add({
       targets: flash,
-      scaleX: 1.5 + comboPower * 0.28,
-      scaleY: 1.5 + comboPower * 0.28,
+      scaleX: 1.8 + comboPower * 0.34,
+      scaleY: 1.8 + comboPower * 0.34,
       alpha: 0,
-      duration: 220,
-      ease: 'Quad.Out',
+      duration: 280,
+      ease: WARM_EASING.lift,
       onComplete: () => flash.destroy()
     });
   }
@@ -1414,16 +1435,16 @@ export class Board {
       .setAlpha(0.22 + comboPower * 0.06)
       .setScale(0.4)
       .setDepth(169)
-      .setBlendMode(Phaser.BlendModes.ADD);
+      .setBlendMode(Phaser.BlendModes.SCREEN);
     const maxRadius = this.layout.cellSize * (0.68 + comboPower * 0.18);
     const pulseState = { radius: 12, alpha: 0.54 + comboPower * 0.04 };
 
     const redraw = (): void => {
       pulse.clear();
-      pulse.lineStyle(4 + comboPower, this.lighten(color, 0.3), pulseState.alpha);
+      pulse.lineStyle(3 + comboPower, this.lighten(color, 0.36), pulseState.alpha);
       pulse.strokeCircle(x, y, pulseState.radius);
-      pulse.lineStyle(11 + comboPower * 2, color, pulseState.alpha * 0.16);
-      pulse.strokeCircle(x, y, pulseState.radius * 0.96);
+      pulse.lineStyle(10 + comboPower * 2, color, pulseState.alpha * 0.16);
+      pulse.strokeCircle(x, y, pulseState.radius * 0.92);
     };
 
     redraw();
@@ -1433,8 +1454,8 @@ export class Board {
       scaleX: 2.1 + comboPower * 0.26,
       scaleY: 2.1 + comboPower * 0.26,
       alpha: 0,
-      duration: 300,
-      ease: 'Quad.Out',
+      duration: 320,
+      ease: WARM_EASING.lift,
       onComplete: () => glow.destroy()
     });
 
@@ -1442,10 +1463,28 @@ export class Board {
       targets: pulseState,
       radius: maxRadius,
       alpha: 0,
-      duration: 320,
-      ease: 'Sine.Out',
+      duration: 360,
+      ease: WARM_EASING.reveal,
       onUpdate: () => redraw(),
       onComplete: () => pulse.destroy()
+    });
+  }
+
+  private createCelebrationPulse(step: CascadeStep, comboPower: number): void {
+    const width = this.scene.scale.gameSize.width;
+    const height = this.scene.scale.gameSize.height;
+    const overlay = this.scene.add.graphics().setDepth(168);
+    const warmTint = mixColor(this.level.accentColor, 0xffe3bd, 0.42);
+    const alpha = Phaser.Math.Clamp(0.04 + comboPower * 0.025 + step.cleared * 0.004, 0.05, 0.14);
+
+    overlay.fillStyle(warmTint, alpha).fillRect(0, 0, width, height);
+
+    this.scene.tweens.add({
+      targets: overlay,
+      alpha: 0,
+      duration: 180,
+      ease: WARM_EASING.reveal,
+      onComplete: () => overlay.destroy()
     });
   }
 

@@ -1,13 +1,24 @@
 import * as Phaser from 'phaser';
 import { GlassVariant } from './LiquidGlassPanel';
+import {
+  DISPLAY_FONT_FAMILY,
+  UI_FONT_FAMILY,
+  WARM_EASING,
+  darken,
+  hexToCss,
+  lighten,
+  mixColor
+} from '../visuals';
 
 export class LiquidGlassButton {
   public readonly root: Phaser.GameObjects.Container;
   public readonly label: Phaser.GameObjects.Text;
 
-  private readonly glow: Phaser.GameObjects.Image;
-  private readonly buttonBody: Phaser.GameObjects.Image;
-  private readonly accentFrame: Phaser.GameObjects.Image;
+  private readonly shadow: Phaser.GameObjects.Graphics;
+  private readonly glow: Phaser.GameObjects.Graphics;
+  private readonly buttonBody: Phaser.GameObjects.Graphics;
+  private readonly innerHighlight: Phaser.GameObjects.Graphics;
+  private readonly stroke: Phaser.GameObjects.Graphics;
   private readonly pulse: Phaser.GameObjects.Graphics;
   private widthPx: number;
   private heightPx: number;
@@ -26,25 +37,27 @@ export class LiquidGlassButton {
   ) {
     this.widthPx = width;
     this.heightPx = height;
-    this.radiusPx = 18;
+    this.radiusPx = Math.max(16, Math.round(height * 0.42));
     this.accent = accent;
     this.variant = variant;
 
     this.root = scene.add.container(0, 0);
-    this.glow = scene.add.image(0, 0, 'ui-button-accent').setOrigin(0.5).setAlpha(0.22);
-    this.buttonBody = scene.add.image(0, 0, 'ui-button-glass').setOrigin(0.5);
-    this.accentFrame = scene.add.image(0, 0, 'ui-button-accent').setOrigin(0.5).setAlpha(0.38);
+    this.shadow = scene.add.graphics();
+    this.glow = scene.add.graphics();
+    this.buttonBody = scene.add.graphics();
+    this.innerHighlight = scene.add.graphics();
+    this.stroke = scene.add.graphics();
     this.pulse = scene.add.graphics();
     this.label = scene.add
       .text(0, 0, '', {
-        fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
+        fontFamily: DISPLAY_FONT_FAMILY,
         fontSize: '18px',
-        fontStyle: '700',
-        color: '#24384d'
+        fontStyle: '800',
+        color: '#5b4a63'
       })
       .setOrigin(0.5);
 
-    this.root.add([this.glow, this.buttonBody, this.accentFrame, this.pulse, this.label]);
+    this.root.add([this.shadow, this.glow, this.buttonBody, this.innerHighlight, this.stroke, this.pulse, this.label]);
     this.redraw();
 
     this.root.setInteractive(
@@ -56,13 +69,22 @@ export class LiquidGlassButton {
     this.root.on('pointerout', () => this.handleHover(false));
     this.root.on('pointerdown', () => {
       scene.tweens.killTweensOf(this.root);
+      scene.tweens.killTweensOf(this.innerHighlight);
       scene.tweens.add({
         targets: this.root,
-        scaleX: 0.96,
-        scaleY: 0.96,
-        duration: 90,
+        scaleX: 0.97,
+        scaleY: 0.95,
+        y: 1,
+        duration: 110,
         yoyo: true,
-        ease: 'Quad.Out'
+        ease: WARM_EASING.settle
+      });
+      scene.tweens.add({
+        targets: this.innerHighlight,
+        alpha: { from: 0.34, to: 0.12 },
+        duration: 110,
+        yoyo: true,
+        ease: WARM_EASING.reveal
       });
       this.emitClickBurst();
       onClick();
@@ -91,6 +113,7 @@ export class LiquidGlassButton {
   public resize(width: number, height: number): this {
     this.widthPx = width;
     this.heightPx = height;
+    this.radiusPx = Math.max(16, Math.round(height * 0.42));
 
     const hitArea = this.root.input?.hitArea;
 
@@ -122,31 +145,50 @@ export class LiquidGlassButton {
     const width = this.widthPx;
     const height = this.heightPx;
     const radius = this.radiusPx;
-    const topAccent = lighten(this.accent, 0.46);
+    const topAccent = lighten(this.accent, 0.48);
+    const lowAccent = mixColor(this.accent, 0xffffff, 0.66);
     const isLight = this.variant === 'light';
+    const bodyTop = isLight ? mixColor(0xffffff, topAccent, 0.42) : mixColor(0x342c46, topAccent, 0.18);
+    const bodyBottom = isLight ? mixColor(0xfff7f2, this.accent, 0.18) : mixColor(0x231d34, this.accent, 0.12);
+
+    this.shadow
+      .clear()
+      .fillStyle(isLight ? darken(this.accent, 0.48) : 0x09060f, isLight ? 0.12 : 0.26)
+      .fillRoundedRect(-width / 2, -height / 2 + 5, width, height, radius);
 
     this.glow
-      .setDisplaySize(width + 10, height + 10)
-      .setTint(this.accent)
-      .setAlpha(isLight ? 0.18 : 0.14);
+      .clear()
+      .fillStyle(this.accent, isLight ? 0.16 : 0.12)
+      .fillRoundedRect(-width / 2 - 4, -height / 2 - 3, width + 8, height + 8, radius + 4)
+      .fillStyle(topAccent, isLight ? 0.12 : 0.08)
+      .fillEllipse(0, -height * 0.08, width * 0.82, height * 1.2);
 
-    this.buttonBody
-      .setDisplaySize(width, height)
-      .setTint(isLight ? 0xffffff : 0xbed0e4)
-      .setAlpha(isLight ? 1 : 0.78);
+    this.buttonBody.clear();
+    this.buttonBody.fillGradientStyle(bodyTop, topAccent, bodyBottom, lowAccent, 0.96, 0.92, 0.94, 0.92);
+    this.buttonBody.fillRoundedRect(-width / 2, -height / 2, width, height, radius);
 
-    this.accentFrame
-      .setDisplaySize(width, height)
-      .setTint(topAccent)
-      .setAlpha(isLight ? 0.42 : 0.34);
+    this.innerHighlight
+      .clear()
+      .fillStyle(0xffffff, isLight ? 0.3 : 0.12)
+      .fillRoundedRect(-width / 2 + 5, -height / 2 + 4, width - 10, height * 0.46, Math.max(12, radius - 6))
+      .fillStyle(lighten(this.accent, 0.58), isLight ? 0.18 : 0.08)
+      .fillRoundedRect(-width / 2 + 8, -height * 0.08, width - 16, height * 0.22, Math.max(10, radius - 10));
+
+    this.stroke
+      .clear()
+      .lineStyle(2, isLight ? mixColor(this.accent, 0xffffff, 0.3) : lowAccent, isLight ? 0.88 : 0.5)
+      .strokeRoundedRect(-width / 2, -height / 2, width, height, radius)
+      .lineStyle(1, 0xffffff, isLight ? 0.7 : 0.18)
+      .strokeRoundedRect(-width / 2 + 4, -height / 2 + 4, width - 8, height - 8, Math.max(12, radius - 6));
 
     this.pulse
       .clear()
-      .lineStyle(2, topAccent, 0.12)
-      .strokeRoundedRect(-width / 2 - 2, -height / 2 - 2, width + 4, height + 4, radius + 2);
+      .lineStyle(2, topAccent, 0.14)
+      .strokeRoundedRect(-width / 2 - 3, -height / 2 - 3, width + 6, height + 6, radius + 4);
 
     this.label.setStyle({
-      color: isLight ? '#24384d' : '#edf8ff',
+      fontFamily: this.label.text.length <= 3 ? DISPLAY_FONT_FAMILY : UI_FONT_FAMILY,
+      color: isLight ? hexToCss(darken(this.accent, 0.5)) : '#fff8f2',
       strokeThickness: 0
     });
   }
@@ -159,77 +201,75 @@ export class LiquidGlassButton {
 
     if (!active) {
       this.scene.tweens.add({
-        targets: [this.glow, this.pulse, this.root],
-        alpha: 1,
+        targets: this.root,
         scaleX: 1,
         scaleY: 1,
-        duration: 140,
-        ease: 'Sine.Out'
+        y: 0,
+        duration: 180,
+        ease: WARM_EASING.reveal
+      });
+      this.scene.tweens.add({
+        targets: [this.glow, this.pulse],
+        alpha: 1,
+        duration: 180,
+        ease: WARM_EASING.reveal
       });
       return;
     }
 
     this.hoverTween = this.scene.tweens.add({
       targets: this.pulse,
-      alpha: { from: 0.16, to: 0.52 },
-      scaleX: { from: 1, to: 1.04 },
-      scaleY: { from: 1, to: 1.04 },
-      duration: 620,
-      ease: 'Sine.InOut',
+      alpha: { from: 0.2, to: 0.64 },
+      scaleX: { from: 1, to: 1.05 },
+      scaleY: { from: 1, to: 1.05 },
+      duration: 720,
+      ease: WARM_EASING.soft,
       yoyo: true,
       repeat: -1
     });
 
     this.scene.tweens.add({
       targets: this.glow,
-      alpha: 1,
-      duration: 140,
-      ease: 'Sine.Out'
+      alpha: 1.12,
+      duration: 180,
+      ease: WARM_EASING.reveal
     });
 
     this.scene.tweens.add({
       targets: this.root,
-      scaleX: 1.02,
-      scaleY: 1.02,
-      duration: 140,
-      ease: 'Sine.Out'
+      scaleX: 1.04,
+      scaleY: 1.04,
+      y: -1.5,
+      duration: 180,
+      ease: WARM_EASING.settle
     });
   }
 
   private emitClickBurst(): void {
-    for (let index = 0; index < 6; index += 1) {
-      const angle = (Math.PI * 2 * index) / 6 + Phaser.Math.FloatBetween(-0.2, 0.2);
+    const textures = ['particle-soft', 'particle-petal', 'particle-heart'];
+
+    for (let index = 0; index < 7; index += 1) {
+      const angle = (Math.PI * 2 * index) / 7 + Phaser.Math.FloatBetween(-0.18, 0.18);
+      const texture = textures[index % textures.length];
       const mote = this.scene.add
-        .image(this.root.x, this.root.y, index % 2 === 0 ? 'particle-soft' : 'particle-streak')
-        .setTint(index % 2 === 0 ? lighten(this.accent, 0.36) : 0xffffff)
-        .setScale(index % 2 === 0 ? 0.24 : 0.14)
-        .setAlpha(0.88)
+        .image(this.root.x, this.root.y, texture)
+        .setTint(index % 2 === 0 ? lighten(this.accent, 0.32) : 0xffffff)
+        .setScale(texture === 'particle-soft' ? 0.2 : 0.16)
+        .setAlpha(0.92)
         .setDepth(this.root.depth + 2)
-        .setBlendMode(Phaser.BlendModes.ADD);
+        .setBlendMode(Phaser.BlendModes.SCREEN);
 
       this.scene.tweens.add({
         targets: mote,
-        x: mote.x + Math.cos(angle) * Phaser.Math.Between(26, 42),
-        y: mote.y + Math.sin(angle) * Phaser.Math.Between(16, 30),
+        x: mote.x + Math.cos(angle) * Phaser.Math.Between(26, 46),
+        y: mote.y + Math.sin(angle) * Phaser.Math.Between(18, 32) - 8,
         alpha: 0,
-        scaleX: 0.02,
-        scaleY: 0.02,
-        duration: Phaser.Math.Between(220, 320),
-        ease: 'Cubic.Out',
+        scaleX: 0.03,
+        scaleY: 0.03,
+        duration: Phaser.Math.Between(240, 360),
+        ease: WARM_EASING.lift,
         onComplete: () => mote.destroy()
       });
     }
   }
 }
-
-const lighten = (hex: number, factor: number): number => {
-  const r = (hex >> 16) & 0xff;
-  const g = (hex >> 8) & 0xff;
-  const b = hex & 0xff;
-
-  return (
-    ((Math.round(r + (255 - r) * factor) & 0xff) << 16) |
-    ((Math.round(g + (255 - g) * factor) & 0xff) << 8) |
-    (Math.round(b + (255 - b) * factor) & 0xff)
-  );
-};

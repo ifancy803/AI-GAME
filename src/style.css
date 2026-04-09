@@ -1,7 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@600;700;800&display=swap');
+
 :root {
   color-scheme: light;
-  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
-  background: linear-gradient(180deg, #f8fbfe 0%, #eef3f8 100%);
+  font-family: 'Nunito', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  background: linear-gradient(180deg, #fff3ee 0%, #fffaf4 45%, #f5fff7 100%);
 }
 
 html,
@@ -21,9 +23,10 @@ body {
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   background:
-    radial-gradient(circle at 12% 10%, rgba(135, 180, 255, 0.12), transparent 22%),
-    radial-gradient(circle at 82% 16%, rgba(120, 224, 210, 0.1), transparent 18%),
-    linear-gradient(180deg, #f8fbfe 0%, #eef3f8 100%);
+    radial-gradient(circle at 14% 12%, rgba(255, 183, 195, 0.22), transparent 24%),
+    radial-gradient(circle at 82% 18%, rgba(173, 234, 204, 0.18), transparent 20%),
+    radial-gradient(circle at 52% 88%, rgba(180, 223, 255, 0.14), transparent 24%),
+    linear-gradient(180deg, #fff3ee 0%, #fffaf4 45%, #f5fff7 100%);
 }
 
 canvas {

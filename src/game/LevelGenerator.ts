@@ -1,4 +1,5 @@
 import { LevelConfig, TILE_PALETTE } from './types';
+import { buildWarmLevelName, mixColor } from './visuals';
 
 const rotatePalette = (offset: number): number[] => {
   const normalized = offset % TILE_PALETTE.length;
@@ -16,11 +17,12 @@ export class LevelGenerator {
     const targetScore = 3400 + tier * 1250 + rows * cols * 24;
     const aiThinkTime = Math.max(360, 900 - tier * 55);
     const palette = rotatePalette(levelId);
+    const accentColor = mixColor(palette[(levelId + 1) % palette.length], 0xffffff, 0.16);
 
     return {
       id: levelId,
-      name: `Sector ${levelId.toString().padStart(2, '0')}`,
-      description: `${rows}x${cols} grid / ${colorCount} gem types / ${turnsPerSide} rounds per side`,
+      name: buildWarmLevelName(levelId),
+      description: `${rows}x${cols} joyful board / ${colorCount} uplifting tile types / ${turnsPerSide} rounds per side`,
       rows,
       cols,
       colorCount,
@@ -29,9 +31,9 @@ export class LevelGenerator {
       targetScore,
       aiThinkTime,
       palette,
-      accentColor: palette[(levelId + 2) % palette.length],
-      backgroundTop: palette[levelId % palette.length],
-      backgroundBottom: palette[(levelId + 4) % palette.length]
+      accentColor,
+      backgroundTop: mixColor(palette[levelId % palette.length], 0xffffff, 0.7),
+      backgroundBottom: mixColor(palette[(levelId + 4) % palette.length], 0xffffff, 0.82)
     };
   }
 }

@@ -1,3 +1,5 @@
+import { JOYFUL_TILE_PALETTE } from './visuals';
+
 export type PlayerSide = 'player' | 'ai';
 export type Language = 'en' | 'zh';
 
@@ -131,15 +133,6 @@ export interface BoardCallbacks {
   onCascade?: (step: CascadeStep, index: number) => void;
 }
 
-export const TILE_PALETTE: number[] = [
-  0xff6b6b,
-  0xff9f43,
-  0xffdd59,
-  0x1dd1a1,
-  0x54a0ff,
-  0x7d5fff,
-  0xf368e0,
-  0x48dbfb
-];
+export const TILE_PALETTE: number[] = JOYFUL_TILE_PALETTE.slice();
 
 export const EMPTY_TILE = -1;
