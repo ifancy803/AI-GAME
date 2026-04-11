@@ -1,4 +1,10 @@
 import './style.css';
-import { bootstrapGame } from './game/Game';
+import { mountApp } from './app/App';
 
-bootstrapGame();
+const root = document.querySelector<HTMLDivElement>('#app');
+
+if (!root) {
+  throw new Error('App root element "#app" was not found.');
+}
+
+mountApp(root);

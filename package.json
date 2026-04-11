@@ -2,15 +2,12 @@
   "name": "ai-game",
   "private": true,
   "version": "0.1.0",
-  "description": "Phaser 4 + TypeScript AI Match-3 game",
+  "description": "Modern TypeScript match-3 tactics game with a rebuilt modular frontend",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview"
-  },
-  "dependencies": {
-    "phaser": "^4.0.0-rc.7"
   },
   "devDependencies": {
     "typescript": "^6.0.2",

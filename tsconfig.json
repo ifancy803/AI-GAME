@@ -10,7 +10,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "strict": true,
-    "types": ["phaser", "vite/client"]
+    "types": ["vite/client"]
   },
   "include": ["src"]
 }
