@@ -1,6 +1,10 @@
 # Prism Protocol
 
+在线试玩：https://pub-a3f0d0474a704359a03182254cf3d8ca.r2.dev/index.html
 一个完全重构后的前端版本：不再依赖 `Phaser`，改为 `TypeScript + Vite + 原生 DOM UI` 的模块化架构，用更简洁的界面和更直接的可视化方式承载整套 Match-3 对战体验。
+
+## English Profile
+A match-3 battle game developed with TypeScript, Vite and native DOM. Built on a modular architecture and a complete game rule engine, it features self-developed basic AI to implement path analysis, decision-making and move ranking.
 
 ## 新架构
 
@@ -43,5 +47,3 @@ npm run dev
 ```bash
 npm run build
 ```
-
-本次重构已经移除了旧的 `Phaser` 依赖，当前前端完全基于新的模块化实现运行。
